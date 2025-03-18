@@ -31,7 +31,7 @@ const clientPath = path.join(__dirname, process.env.CLIENT_FOLDER);
 console.log('Serving the react files from:', clientPath);
 app.use(express.static(clientPath));
 
-// Start the server on port 5000 for the React app and set it so that it is publicly accessible - Secured by AWS security group
+// Use port 5000 for the React app and set it so that it is publicly accessible - Secured by AWS security group
 const publicPort = process.env.PORT || 5000;
 app.listen(publicPort, '0.0.0.0', () => {
   console.log(`React app is running on http://0.0.0.0:${publicPort}`);

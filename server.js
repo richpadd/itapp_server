@@ -26,18 +26,7 @@ app.use(express.json());                // For handling JSON
 // ---------------------------------------------------------------------------
 // SERVER Configuration and Startup
 
-// Front-end: Set it to serve the static files from the react app folder set in our environment file
-const clientPath = path.join(__dirname, process.env.CLIENT_FOLDER);
-console.log('Serving the react files from:', clientPath);
-app.use(express.static(clientPath));
-
-// Use port 5000 for the React app and set it so that it is publicly accessible - Secured by AWS security group
-const publicPort = process.env.PORT || 5000;
-app.listen(publicPort, '0.0.0.0', () => {
-  console.log(`React app is running on http://0.0.0.0:${publicPort}`);
-});
-
-// Back-end: Start the server for the API on Port 3000 and for use by localhost only (i.e. the app or admin) for security 
+// Start the server for the API on Port 3000 and for use by localhost only (i.e. the app or admin) for security 
 const apiPort = 3000;
 app.listen(apiPort, '127.0.0.1', () => {
   console.log(`API server is running on http://localhost:${apiPort}`);

@@ -55,7 +55,7 @@ db.connect(err => {
 // --------------------------------------------------------------------------
 // API's
 
-app.get('/api/test', (req, res) => {
+app.get('http://localhost:3000/api/test', (req, res) => {
     res.json({ message: 'Hello from the API!' });
 });
 

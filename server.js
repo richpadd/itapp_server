@@ -26,10 +26,10 @@ app.use(express.json());                // For handling JSON
 // ---------------------------------------------------------------------------
 // SERVER Configuration and Startup
 
-// Front-end: Set it to serve the static files from my React app build folder
-const buildPath = path.join(__dirname, '../client/build');
-console.log('Serving static files from:', buildPath);
-app.use(express.static(buildPath));
+// Front-end: Set it to serve the static files from the react app folder set in our environment file
+const clientPath = path.join(__dirname, process.env.CLIENT_FOLDER);
+console.log('Serving the react files from:', clientPath);
+app.use(express.static(clientPath));
 
 // Start the server on port 5000 for the React app and set it so that it is publicly accessible - Secured by AWS security group
 const publicPort = process.env.PORT || 5000;

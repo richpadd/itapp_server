@@ -1,17 +1,20 @@
-const express = require('express');
-const mysql = require('mysql2');
-const cors = require('cors');
+
+// Request all necessary packages
+require('dotenv').config();             // Dotenv package for retrieving environment variables (login credentials) more securely
+const express = require('express');     // Express server package
+const mysql = require('mysql2');        // MySQL package for database integration
+const cors = require('cors');           // Cross-Origin Resource Sharing package for managing access
 
 const app = express();
 app.use(cors());
 app.use(express.json()); // For parsing JSON requests
 
-// Connect to MySQL
+// Connect to the MariaDB MySQL using the credentials from the .env file
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '', // Your MySQL password
-    database: 'puzzles'
+    host: process.env.DB_HOST,        
+    user: process.env.DB_USER,        
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME    
 });
 
 db.connect(err => {
@@ -28,7 +31,7 @@ app.get('/api/test', (req, res) => {
     const {id} = req.query;
     
     // Base query string
-    let query = 'SELECT * FROM test';
+    let query = 'SELECT * FROM test_table';
     let conditions = [];
     
     // If the 'id' filter is provided, add it to the query

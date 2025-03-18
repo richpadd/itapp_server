@@ -56,30 +56,34 @@ db.connect(err => {
 // API's
 
 app.get('/api/test', (req, res) => {
-    // Destructure the query parameters (e.g. id)
-    const {id} = req.query;
-    
-    // Base query string
-    let query = 'SELECT * FROM test_table';
-    let conditions = [];
-    
-    // If the 'id' filter is provided, add it to the query
-    if (id) {
-        conditions.push(`id = ?`);
-    }
-      
-    // If there are any conditions, join them with 'AND' and append to the query
-    if (conditions.length > 0) {
-        query += ' WHERE ' + conditions.join(' AND ');
-    }
-    // Execute the query with the parameters (use ? placeholders for safety)
-
-    console.log(query)
-    db.query(query, [id].filter(Boolean), (err, results) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(results);
-    });
+    res.json({ message: 'Hello from the API!' });
 });
+
+// app.get('/api/test', (req, res) => {
+//     // Destructure the query parameters (e.g. id)
+//     const {id} = req.query;
+    
+//     // Base query string
+//     let query = 'SELECT * FROM test_table';
+//     let conditions = [];
+    
+//     // If the 'id' filter is provided, add it to the query
+//     if (id) {
+//         conditions.push(`id = ?`);
+//     }
+      
+//     // If there are any conditions, join them with 'AND' and append to the query
+//     if (conditions.length > 0) {
+//         query += ' WHERE ' + conditions.join(' AND ');
+//     }
+//     // Execute the query with the parameters (use ? placeholders for safety)
+
+//     console.log(query)
+//     db.query(query, [id].filter(Boolean), (err, results) => {
+//         if (err) {
+//             res.status(500).json({ error: err.message });
+//             return;
+//         }
+//         res.json(results);
+//     });
+// });

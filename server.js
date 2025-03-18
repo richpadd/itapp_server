@@ -28,7 +28,7 @@ app.use(express.json());                // For handling JSON
 
 // Start the server for the API on Port 3000 and for use by localhost only (i.e. the app or admin) for security 
 const apiPort = 3000;
-app.listen(apiPort, '127.0.0.1', () => {
+app.listen(apiPort, '0.0.0.0', () => {
   console.log(`API server is running on http://localhost:${apiPort}`);
 });
 
@@ -56,34 +56,30 @@ db.connect(err => {
 // API's
 
 app.get('/api/test', (req, res) => {
-    res.json({ message: 'Hello from the API!' });
-});
-
-// app.get('/api/test', (req, res) => {
-//     // Destructure the query parameters (e.g. id)
-//     const {id} = req.query;
+    // Destructure the query parameters (e.g. id)
+    const {id} = req.query;
     
-//     // Base query string
-//     let query = 'SELECT * FROM test_table';
-//     let conditions = [];
+    // Base query string
+    let query = 'SELECT * FROM test_table';
+    let conditions = [];
     
-//     // If the 'id' filter is provided, add it to the query
-//     if (id) {
-//         conditions.push(`id = ?`);
-//     }
+    // If the 'id' filter is provided, add it to the query
+    if (id) {
+        conditions.push(`id = ?`);
+    }
       
-//     // If there are any conditions, join them with 'AND' and append to the query
-//     if (conditions.length > 0) {
-//         query += ' WHERE ' + conditions.join(' AND ');
-//     }
-//     // Execute the query with the parameters (use ? placeholders for safety)
+    // If there are any conditions, join them with 'AND' and append to the query
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+    // Execute the query with the parameters (use ? placeholders for safety)
 
-//     console.log(query)
-//     db.query(query, [id].filter(Boolean), (err, results) => {
-//         if (err) {
-//             res.status(500).json({ error: err.message });
-//             return;
-//         }
-//         res.json(results);
-//     });
-// });
+    console.log(query)
+    db.query(query, [id].filter(Boolean), (err, results) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(results);
+    });
+});

@@ -117,4 +117,26 @@ app.get('/api/terms', (req, res) => {
     }); 
 // --------------------------End of GET terms API
 
+//---------------------------------------------------------------------------
+// API - GET categories
+// Returns - category names ordered alphabetically
+// Return Format - JSON
+// Parameters - None
+// --------------------------------------------------------------------------
+
+app.get('/api/categories', (req, res) => {  
+    // Set the initial SQL
+    let query = 'SELECT name FROM categories ORDER BY name';
+
+    // Execute the query using our prepared SQL with parameterized queries to avoid SQL injection
+    db.query(query, (err, results) => {  
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(results);
+    });
+});
+// --------------------------End of GET categories API
+
 });

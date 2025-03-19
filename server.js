@@ -119,14 +119,14 @@ app.get('/api/terms', (req, res) => {
 
 //---------------------------------------------------------------------------
 // API - GET categories
-// Returns - category names ordered alphabetically
+// Returns - category id and category names ordered alphabetically
 // Return Format - JSON
 // Parameters - None
 // --------------------------------------------------------------------------
 
 app.get('/api/categories', (req, res) => {  
     // Set the initial SQL
-    let query = 'SELECT name FROM categories ORDER BY name';
+    let query = 'SELECT id, name FROM categories ORDER BY name';
 
     // Execute the query using our prepared SQL with parameterized queries to avoid SQL injection
     db.query(query, (err, results) => {  

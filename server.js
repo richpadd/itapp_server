@@ -71,10 +71,11 @@ app.get('/api/terms', (req, res) => {
 
     // Extract any passed-in parameters with default values
     const category_id = queryParams.category_id || null;
+    const category_name = queryParams.category_name || '';
     const term_name = queryParams.term_name || '';
     
     // Set the initial SQL
-    let query = 'SELECT categories.name AS category, terms.name, terms.definition FROM categories, terms WHERE terms.category_id = categories.id' 
+    let query = 'SELECT categories.name AS category, terms.name, terms.definition, terms.updated, terms.created FROM categories, terms WHERE terms.category_id = categories.id' 
     let querysort =' ORDER BY categories.id, terms.id;'
 
     // Process any incoming parameters
@@ -90,6 +91,17 @@ app.get('/api/terms', (req, res) => {
         }
     }
     
+    // Category Name has been passed so add it to our query as a category filter
+    if (category_name){
+        // If name is too long then return an error (a safety check)
+        if (category_name.length>100){
+            return res.status(400).json({ error: 'Invalid category name' });}
+        else {
+            query += ' AND categories.name=?'
+            queryParameters.push(category_name);
+        }
+    }
+
     // Term Name has been passed so add it to our query as a like so we can search on a partial match too (Our DB collation is case insenstive)
     if (term_name) {
         // If name is too long then return an error (a safety check)

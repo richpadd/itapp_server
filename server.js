@@ -1,12 +1,14 @@
 // ----------------------------------------------------------------------------
 // ITMD-504 - Programming and Application Foundations
-// Final Project - Puzzle Checker
+// Final Project - IT Terms
 // Richard Paddock (A20603128)
 // ----------------------------------------------------------------------------
 // File: app/server.js
 // Descripton: This is the node.js server main fle, it includes - 
 // - Config/startup for express to serve the back-end node.js code
-// - The back-end node.js API code
+// - Server login and authentication control
+// - The back-end API code
+// - Logging code (all API results logged a text file)
 // ----------------------------------------------------------------------------
 // 
 // NODE Package management
@@ -15,46 +17,31 @@
 require('dotenv').config();                         // Dotenv package for retrieving our environment variables
 const express = require('express');                 // Express server package
 const session = require("express-session");         // Express-session for handling session management
-const bcrypt = require("bcryptjs");                 // For encryption
-const mysql = require('mysql2');                    // MySQL package for database integration
 const cors = require('cors');                       // Cross-Origin Resource Sharing package for managing access
+const mysql = require('mysql2');                    // MySQL package for database integration
+const fs = require('fs');                           // Add in File System module for text file handling
 const path = require('path');                       // Add in path methods
-
-const app = express();
-//app.use(cors());
-app.use(express.json());                            // For handling JSON 
-app.use(express.urlencoded({ extended: true }));
-
-app.use(cors({
-    // origin: 'http://localhost:5500', // Update with your frontend's port
-    credentials: true // Allow credentials (cookies, authorization headers)
-}));
-
 
 // ---------------------------------------------------------------------------
 // SERVER Configuration and Startup
 
-// Start the server for the API on Port 3000 and for use by localhost only (i.e. the app or admin) for security 
-const apiPort = 3000;
-app.listen(apiPort, '0.0.0.0', () => {
+const app = express();
+app.use(express.json());                            // For handling JSON 
+
+// For security, only receive from our webserver and use authentication
+app.use(cors({
+    origin: process.env.WEBSERVER_URL,
+    credentials: true 
+}));
+
+// Start the server for the API on path as per the envioronment settings and for use by localhost only (i.e. the app or admin) for security 
+const apiPort = process.env.LISTEN_PORT;
+app.listen(apiPort, 'localhost', () => {
   console.log(`API server is running on http://localhost:${apiPort}`);
 });
 
 // ---------------------------------------------------------------------------
 // DATABASE SETUP AND CONNECT
-
-// Configure session middleware
-app.use(
-    session({
-      secret: "your-secret-key", // Change this to a secure secret key
-      resave: false,
-      saveUninitialized: true,
-      cookie: { secure: false }, // Set to true if using HTTPS
-    })
-  );
-
-// Mock user database
-const users = [{ username: "admin", password: bcrypt.hashSync("password", 10) }];
 
 // Connect to our MariaDB MySQL using the credentials from the environment (.env) file
 const db = mysql.createConnection({
@@ -76,42 +63,52 @@ db.connect(err => {
 });
 
 // ---------------------------------------------------------------------------
-// Session Management
+// Session & Login Management
 
-// Login endpoint
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    // Replace with actual authentication logic
-    if (username === 'user' && password === 'password') {
-      req.session.user = username;
-      res.json({ success: true });
-    } else {
-      res.json({ success: false });
+// Configure session middleware
+app.use(
+    session({
+      secret: process.env.SECRET_WORD,
+      resave: false,
+      saveUninitialized: true,
+      cookie: {secure: false },
+    })
+  );
+
+// Login - Given this is just a test prototype we store user and passowrd in the environment settings file
+app.post("/api/login", (req, res) => {
+    if (req.body.username === process.env.APP_USER && req.body.password === process.env.APP_PASSWORD) {
+        req.session.user = process.env.APP_USER;
+        logAction('Login successful by user:'+req.body.username);                 // Output status to the log
+        return res.json({ message: "Logged in" });
     }
-  });
-  
-  // Logout endpoint
-  app.post('/api/logout', (req, res) => {
-    req.session.destroy(err => {
-      if (err) {
-        return res.json({ success: false });
-      }
-      res.clearCookie('connect.sid'); // Clear session cookie
-      res.json({ success: true });
-    });
-  });
-  
-  // Check login status endpoint
-  app.get('/api/status', (req, res) => {
-    if (req.session.user) {
-      res.json({ loggedIn: true, user: req.session.user });
-    } else {
-      res.json({ loggedIn: false });
-    }
-  });
+    logAction('Login attempt failed by user:'+req.body.username);                 // Output status to the log
+    res.status(401).json({ message: "Wrong credentials" });
+});
+
+// Check Auth
+app.get("/api/auth", (req, res) => {
+    if (req.session.user) return res.json({ user: req.session.user });
+    res.status(401).json({ message: "Not logged in" });
+});
+
+// Middleware function to check authentication status prior to other API calls
+function isAuthenticated(req, res, next) {
+  if (req.session.user) {
+      next();  // Proceed to the protected route if authenticated
+  } else {
+      res.status(401).json({ message: "Not logged in" });
+  }
+}
+
+// Logout
+app.post("/api/logout", (req, res) => {
+    logAction('User logged out');                                        // Output status to the log
+    req.session.destroy(() => res.json({ message: "Logged out" }));
+});
 
 // ---------------------------------------------------------------------------
-// HELPER FUNCTIONS
+// HELPER function section
 
 // Check if a Term already exists 
 const checkTerm = async (termName) => {
@@ -138,110 +135,77 @@ const getCatID = async (catName) => {
     });
   };
 
+// Logging Function - Logs all key events to external text file
+const logAction = (loginfo) => {
+
+    // Define the text file log name, formats as path/LOG-YYYY-MM-DD.txt
+    const today = new Date();
+    const logFileName = `LOG-${today.toISOString().slice(0, 10)}.txt`;
+    const logFilePath = path.join(process.env.LOG_PATH, logFileName); 
+
+    // Writes date and passed-in log info to the text file log - creating the file if it doesn't already exist
+    try {
+        fs.appendFileSync(logFilePath, today + ': '+ loginfo+'\n', 'utf8');
+    } catch (error) {
+        console.error('Error writing to log file:', error);
+    }
+}
+
 // --------------------------------------------------------------------------
 // API Section
 
 //---------------------------------------------------------------------------
 // API - GET terms
-// Returns - id, category name, term name, definition and alternatives ordered by category and term (JSON)
-// Parameters - Optional: category_id, term_name 
+// Returns - id, category name, term name, definition and alternatives ordered by category and term
 // --------------------------------------------------------------------------
 
-app.get('/api/terms', (req, res) => {
-    
-    // Get any incoming query parameters - category = the category ID or name = a full or partial term name
-    const queryParams = req.query || {}; 
-
-    // Extract any passed-in parameters with default values
-    const category_id = queryParams.category_id || null;
-    const category_name = queryParams.category_name || '';
-    const term_name = queryParams.term_name || '';
+app.get('/api/terms',  isAuthenticated, (req, res) => {
     
     // Set the initial SQL
     let query = 'SELECT categories.id as catid, categories.name as catname, terms.id as termid, terms.name as termname, terms.definition, ' +
                 'terms.alt1, terms.alt2, terms.alt3 FROM categories, terms WHERE terms.category_id = categories.id' 
     let querysort =' ORDER BY categories.id, terms.name;'
 
-    // Process any incoming parameters
-    let queryParameters = [];
-
-    // Category ID has been passed so add it to our query as a category filter, unless it's not a number in which case return an error (a safety check)
-    if (category_id) {
-        if (isNaN(category_id)){
-            return res.status(400).json({ error: 'Invalid category_id' });}
-        else {
-            query += ' AND categories.id=?'
-            queryParameters.push(category_id);
-        }
-    }
-    
-    // Category Name has been passed so add it to our query as a category filter
-    if (category_name){
-        // If name is too long then return an error (a safety check)
-        if (category_name.length>100){
-            return res.status(400).json({ error: 'Invalid category name' });}
-        else {
-            query += ' AND categories.name=?'
-            queryParameters.push(category_name);
-        }
-    }
-
-    // Term Name has been passed so add it to our query as a like so we can search on a partial match too (Our DB collation is case insenstive)
-    if (term_name) {
-        // If name is too long then return an error (a safety check)
-        if (term_name.length>100){
-            return res.status(400).json({ error: 'Invalid term name' });}
-        else {
-            query += ' AND terms.name LIKE ?'
-            queryParameters.push(`${term_name}%`);
-        }
-    }
-
     // Add sort terms to the query
     query += querysort;
 
-    // Output query to the log for checking
-    console.log(query)
-
     // Execute the query using our prepared SQL with parameterised queries to avoid SQL injection and return the result
-    db.query(query, queryParameters, (err, results) => {
+    db.query(query, (err, results) => {
         if (err) {
-            res.status(500).json({ error: 'Error selecting on terms: ' + err.message });
+            res.status(500).json({ error: 'Error selecting on terms: ' + err.message });     // Return general error 
             return;
         }
-        res.json(results);
+    logAction('Terms list returned');                                                        // Output request to the log
+    res.status(200).json({ success: true, data: results });                                 // Return success code and our result set
     });
 }); 
 
 //---------------------------------------------------------------------------
 // API - POST - Insert a new term
-// Returns - Success or failure result
 // Parameters - term name, category name, definition, alternative quiz defintions x 3 (can be blank to exclude from quiz) 
 // --------------------------------------------------------------------------
 
-app.post('/api/terms', async (req, res) => {
+app.post('/api/terms',isAuthenticated, async (req, res) => {
     const {termname, catname, definition,alt1,alt2,alt3} = req.body;
     inquiz = 1;
     catid = 1;
 
     // Check all required parameters have been passed 
     if (termname == null || catname == null, definition == null || alt1 == null || alt2 == null || alt3 == null ) {
-        res.status(400).json({error: 'Incorrect parameters passed'});
+        res.status(400).json({error: 'Incorrect parameters passed'});              // Return a bad request error
         return;
     } 
 
     // Check if this exact term already exists 
     const checkResult = await checkTerm(termname);
-    console.log(checkResult);
     if (checkResult!='200'){
-        res.status(409).json({ error: 'This term name already exists'});
+        res.status(409).json({ error: 'This term name already exists'});           // Return a Conflict error - already exists
         return;
     } 
 
     // Check the category exists and get it's ID
     const categoryID = await getCatID(catname);
-    console.log(categoryID);
-    if (categoryID == '404'|| categoryID == '500' ) {
+    if (categoryID == '404'|| categoryID == '500' ) {                              // Return a not found - on category
         res.status(404).json({ error: 'Error occured on category lookup'});
         return;} 
     else {catid = categoryID;}
@@ -250,41 +214,37 @@ app.post('/api/terms', async (req, res) => {
     if ( alt1 == "" || alt2 == "" || alt3 == "" ) {inquiz = 0;}
 
     // All good - Let's insert the new term
-    const insertTermQuery = 'INSERT INTO terms (name, category_id, definition, inquiz, alt1, alt2, alt3) VALUES(?, ?, ?, ?, ?, ?, ?)'
-    // Output query string to the console for checking
-    console.log(insertTermQuery);
+    const insertTermQuery = 'INSERT INTO terms (name, category_id, definition, inquiz, alt1, alt2, alt3) VALUES(?, ?, ?, ?, ?, ?, ?)' 
     db.query(insertTermQuery, [termname, catid, definition, inquiz, alt1, alt2, alt3], (err, result) => {
         if (err) {
-            res.status(500).json({ error: err.message });
-            console.log(err.message);
+            res.status(500).json({ error: err.message });                         // Return a general error
             return;
         }
-        res.status(201).json({message: 'New Item Created',id: result.insertId});
+        logAction('Term inserted: '+termname);                                    // Output request to the log
+        res.status(201).json({message: 'New Item Created',id: result.insertId});  // Return success! 
     });
 });
 
 //---------------------------------------------------------------------------
 // API - PUT - Update an existing term
-// Returns - Success or failure result
 // Parameters - term id, term name, category name, definition, alternative quiz defintions x 3 (can be blank to exclude from quiz) 
 // --------------------------------------------------------------------------
 
-app.put('/api/terms', async (req, res) => {
+app.put('/api/terms',isAuthenticated, async (req, res) => {
     const {termid, termname, catname, definition,alt1,alt2,alt3} = req.body;
     inquiz = 1;
     catid = 1;
 
     // Check all required parameters have been passed 
     if (termid == null || termname == null || catname == null, definition == null || alt1 == null || alt2 == null || alt3 == null ) {
-        res.status(400).json({error: 'Incorrect parameters passed'});
+        res.status(400).json({error: 'Incorrect parameters passed'});               // Return a bad request error
         return;
     } 
 
    // Check the category exists and get it's ID
     const categoryID = await getCatID(catname);
-    console.log(categoryID);
     if (categoryID == '404'|| categoryID == '500' ) {
-        res.status(404).json({ error: 'Error occured on category lookup'});
+        res.status(404).json({ error: 'Error occured on category lookup'});         // Return a not found - on category error
         return;} 
     else {catid = categoryID;}
 
@@ -292,16 +252,15 @@ app.put('/api/terms', async (req, res) => {
     if ( alt1 == "" || alt2 == "" || alt3 == "" ) {inquiz = 0;}
 
     // All good - Let's update this term
-    const insertTermQuery = 'UPDATE terms SET name=?, category_id=?, definition=?, inquiz=?, alt1=?, alt2=?, alt3=? WHERE id=?';
-    // Output query string to the console for checking
-    console.log(insertTermQuery);
-    db.query(insertTermQuery, [termname, catid, definition, inquiz, alt1, alt2, alt3, termid], (err, result) => {
+    const updateTermQuery = 'UPDATE terms SET name=?, category_id=?, definition=?, inquiz=?, alt1=?, alt2=?, alt3=? WHERE id=?';
+    db.query(updateTermQuery, [termname, catid, definition, inquiz, alt1, alt2, alt3, termid], (err, result) => {
         if (err) {
             res.status(500).json({ error: err.message });
             console.log(err.message);
             return;
         }
-        res.status(200).json({message: 'Record Updated Successfully'});
+        logAction('Term updated: ID: '+termid);                                      // Output request to the log
+        res.status(200).json({message: 'Record Updated Successfully'});            // Return success!
     });
 });
 
@@ -310,42 +269,39 @@ app.put('/api/terms', async (req, res) => {
 // Parameters - term ID to delete
 // --------------------------------------------------------------------------
 
-app.delete('/api/terms/', (req, res) => {
+app.delete('/api/terms/',isAuthenticated, (req, res) => {
     const {termid} = req.body;
-    console.log(termid);
     const deleteQuery = 'DELETE FROM terms WHERE id = ?';
-    console.log(deleteQuery);
     db.query(deleteQuery, [termid], (err, result) => {
         if (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: err.message });                          // Return a general error 
             console.log(err.message);
             return;
         }
         if (result.affectedRows === 0) {
-            res.status(404).json({ message: 'Term not found' });
+            res.status(404).json({ message: 'Term not found' });                   // Retun a not found on term
             return;
         }
-        res.status(200).json({ message: 'Item Removed'});
+        logAction('Term deleted: ID: '+termid);                                    // Output request to the log
+        res.status(200).json({ message: 'Item Removed'});                          // Return success!
     });
 });
 
 //---------------------------------------------------------------------------
 // API - GET categories
-// Returns - category id and category names ordered alphabetically
-// Return Format - JSON
+// Returns - category id and category names ordered alphabetically 
 // Parameters - None
 // --------------------------------------------------------------------------
 
-app.get('/api/categories', (req, res) => {  
-    // Set the initial SQL
+app.get('/api/categories',isAuthenticated, (req, res) => {                         
+    // Set the initial SQL and run it
     let catQuery = 'SELECT id, name FROM categories ORDER BY name';
-
-    // Execute the query using our prepared SQL with parameterized queries to avoid SQL injection
     db.query(catQuery, (err, results) => {  
         if (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: err.message });                         // Return a general error
             return;
         }
-        res.json(results);
+        logAction('Category list returned');                                       // Output request to the log
+        res.status(200).json({ success: true, data: results });                   // Return success code and our result set
     });
 });

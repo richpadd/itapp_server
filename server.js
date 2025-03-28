@@ -28,22 +28,24 @@ const path = require('path');                       // Add in path methods
 const app = express();
 app.use(express.json());                            // For handling JSON 
 
-// For security, only receive from our webserver and use authentication
+// For security, only receive from our domain (set in the environment file) and use authentication
 app.use(cors({
-    origin: '*', // process.env.WEBSERVER_URL,
-    credentials: true 
+    origin: process.env.WEBSERVER_URL,
+    credentials: true, 
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Start the server for the API on path as per the envioronment settings and for use by localhost only (i.e. the app or admin) for security 
+// Start the server for the API on path as per the environment settings, and bind only to localhost to improve security
 const apiPort = process.env.LISTEN_PORT;
-app.listen(apiPort, '0.0.0.0', () => {
+app.listen(apiPort, 'localhost', () => {
   console.log(`API server is running on http://localhost:${apiPort}`);
+  logAction('API server started');
 });
 
 // ---------------------------------------------------------------------------
 // DATABASE SETUP AND CONNECT
 
-// Connect to our MariaDB MySQL using the credentials from the environment (.env) file
+// Connect to our MariaDB MySQL using the credentials from the environment file
 const db = mysql.createConnection({
     host: process.env.DB_HOST,        
     user: process.env.DB_USER,        
@@ -51,15 +53,15 @@ const db = mysql.createConnection({
     database: process.env.DB_NAME    
 });
 
-console.log('Connecting to',process.env.DB_NAME);
-
 // Provide an error/success message 
 db.connect(err => {
     if (err) {
         console.error('Database connection failed:', err);
+        logAction('Database connection failed');
         return;
     }
     console.log('Connected to our',process.env.DB_NAME,'database');
+    logAction('Database connection successful');
 });
 
 // ---------------------------------------------------------------------------
@@ -94,6 +96,7 @@ app.get("/api/auth", (req, res) => {
 
 // Middleware function to check authentication status prior to other API calls
 function isAuthenticated(req, res, next) {
+  logAction('Authentication requested');                                          // Output status to the log
   if (req.session.user) {
       next();  // Proceed to the protected route if authenticated
   } else {
@@ -103,7 +106,7 @@ function isAuthenticated(req, res, next) {
 
 // Logout
 app.post("/api/logout", (req, res) => {
-    logAction('User logged out');                                        // Output status to the log
+    logAction('User logged out');                                                 // Output status to the log
     req.session.destroy(() => res.json({ message: "Logged out" }));
 });
 

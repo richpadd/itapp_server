@@ -30,7 +30,7 @@ app.use(express.json());                            // For handling JSON
 
 // For security, only receive from our webserver and use authentication
 app.use(cors({
-    origin: process.env.WEBSERVER_URL,
+    origin: '*', // process.env.WEBSERVER_URL,
     credentials: true 
 }));
 

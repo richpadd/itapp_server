@@ -36,7 +36,7 @@ app.use(cors({
 
 // Start the server for the API on path as per the envioronment settings and for use by localhost only (i.e. the app or admin) for security 
 const apiPort = process.env.LISTEN_PORT;
-app.listen(apiPort, 'localhost', () => {
+app.listen(apiPort, '0.0.0.0', () => {
   console.log(`API server is running on http://localhost:${apiPort}`);
 });
 

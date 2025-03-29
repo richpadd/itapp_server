@@ -26,14 +26,34 @@ const path = require('path');                       // Add in path methods
 // SERVER Configuration and Startup
 
 const app = express();
-app.use(express.json());                            // For handling JSON 
+app.use(express.json());                                                // For handling JSON 
+const inDevelopment = process.env.MODE === 'development';               // Holds whether in development or production based on ENV variable setting
+console.log(inDevelopment);
 
-// For security, only receive from our domain (set in the environment file) and use authentication
-app.use(cors({
-    origin: process.env.WEBSERVER_URL,
-    credentials: true, 
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Securing our API usage through Cross-Origin Resource Sharing
+// - Applies protected CORS to authenticated routes (all DB write functions) using 'api' path
+// - Applies public CORS only allow non-authenticated routes (GET read-only) using 'public-api' path
+// - Restrics access to all routes to receive only our from our domain (set in the environment file)
+// - Disabled when in development mode
+
+if (!inDevelopment) {
+    // Public setup
+    const publicCors = cors({
+        origin: process.env.WEBSERVER_URL,                               
+        credentials: false, 
+        allowedHeaders: ['Content-Type']
+    });
+    app.use('/public-api', publicCors);                                  // Apply public CORS only allow non-authenticated routes (GET read-only) 
+
+    // Protected setup
+    const protectedCors = cors({
+        origin: process.env.WEBSERVER_URL,                              
+        credentials: true, 
+        allowedHeaders: ['Content-Type', 'Authorization']
+    });
+    app.use('/api', protectedCors);                                      // Apply protected CORS to authenticated routes
+}
+else {app.use(cors());}                                                  // Development mode only allows all origins through
 
 // Start the server for the API on path as per the environment settings, and bind only to localhost to improve security
 const apiPort = process.env.LISTEN_PORT;
@@ -158,11 +178,11 @@ const logAction = (loginfo) => {
 // API Section
 
 //---------------------------------------------------------------------------
-// API - GET terms
+// API - GET terms (Publically Accessible)
 // Returns - id, category name, term name, definition and alternatives ordered by category and term
 // --------------------------------------------------------------------------
 
-app.get('/api/terms',  isAuthenticated, (req, res) => {
+app.get('/public-api/terms', (req, res) => {
     
     // Set the initial SQL
     let query = 'SELECT categories.id as catid, categories.name as catname, terms.id as termid, terms.name as termname, terms.definition, ' +
@@ -184,7 +204,7 @@ app.get('/api/terms',  isAuthenticated, (req, res) => {
 }); 
 
 //---------------------------------------------------------------------------
-// API - POST - Insert a new term
+// API - POST - Insert a new term (Authentication Required)
 // Parameters - term name, category name, definition, alternative quiz defintions x 3 (can be blank to exclude from quiz) 
 // --------------------------------------------------------------------------
 
@@ -229,7 +249,7 @@ app.post('/api/terms',isAuthenticated, async (req, res) => {
 });
 
 //---------------------------------------------------------------------------
-// API - PUT - Update an existing term
+// API - PUT - Update an existing term (Authentication Required)
 // Parameters - term id, term name, category name, definition, alternative quiz defintions x 3 (can be blank to exclude from quiz) 
 // --------------------------------------------------------------------------
 
@@ -268,7 +288,7 @@ app.put('/api/terms',isAuthenticated, async (req, res) => {
 });
 
 //---------------------------------------------------------------------------
-// API - DELETE existing term
+// API - DELETE existing term (Authentication Required)
 // Parameters - term ID to delete
 // --------------------------------------------------------------------------
 
@@ -291,12 +311,12 @@ app.delete('/api/terms/',isAuthenticated, (req, res) => {
 });
 
 //---------------------------------------------------------------------------
-// API - GET categories
+// API - GET categories ((Publically Accessible))
 // Returns - category id and category names ordered alphabetically 
 // Parameters - None
 // --------------------------------------------------------------------------
 
-app.get('/api/categories',isAuthenticated, (req, res) => {                         
+app.get('/public-api/categories', (req, res) => {                         
     // Set the initial SQL and run it
     let catQuery = 'SELECT id, name FROM categories ORDER BY name';
     db.query(catQuery, (err, results) => {  

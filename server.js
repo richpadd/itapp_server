@@ -28,7 +28,7 @@ const path = require('path');                       // Add in path methods
 const app = express();
 app.use(express.json());                                                // For handling JSON 
 const inDevelopment = process.env.MODE === 'development';               // Holds whether in development or production based on ENV variable setting
-console.log(inDevelopment);
+console.log('Development mode:'+inDevelopment);
 
 // Securing our API usage through Cross-Origin Resource Sharing
 // - Applies protected CORS to authenticated routes (all DB write functions) using 'api' path

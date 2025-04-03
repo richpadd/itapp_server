@@ -1,1 +1,2 @@
-The primary file in this repo is **server.js**. It's the node.js express server code for the API's driving the IT Terms site.
+This repository is for the API server code for the IT Terms website project 
+The primary file is **server.js**, continaing the node.js express server code I have developed for all of the API's driving the site.

@@ -29,6 +29,7 @@ const app = express();
 app.use(express.json());                                                // For handling JSON 
 const inDevelopment = process.env.MODE === 'development';               // Holds whether in development or production based on ENV variable setting
 console.log('Development mode:'+inDevelopment);
+console.log(process.env.WEBSERVER_URL);
 
 // Securing our API usage through Cross-Origin Resource Sharing
 // - Applies protected CORS to authenticated routes (all DB write functions) using 'api' path
@@ -55,7 +56,7 @@ if (!inDevelopment) {
 }
 else {app.use(cors());}                                                  // Development mode only allows all origins through
 
-// Start the server for the API on path as per the environment settings, and bind only to localhost to improve security
+// Start the server for the API on path as per the environment settings, and bind only to localhost (i.e. from webserver on this box) to improve security
 const apiPort = process.env.LISTEN_PORT;
 app.listen(apiPort, 'localhost', () => {
   console.log(`API server is running on http://localhost:${apiPort}`);

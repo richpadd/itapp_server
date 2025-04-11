@@ -28,8 +28,8 @@ const path = require('path');                       // Add in path methods
 const app = express();
 app.use(express.json());                                                // For handling JSON 
 const inDevelopment = process.env.MODE === 'development';               // Holds whether in development or production based on ENV variable setting
-console.log('Development mode:'+inDevelopment);
-console.log(process.env.WEBSERVER_URL);
+console.log('Development mode is '+inDevelopment);
+console.log('CORS origin set to '+process.env.WEBSERVER_URL);
 
 // Securing our API usage through Cross-Origin Resource Sharing
 // - Applies protected CORS to authenticated routes (all DB write functions) using 'api' path
@@ -328,4 +328,95 @@ app.get('/public-api/categories', (req, res) => {
         logAction('Category list returned');                                       // Output request to the log
         res.status(200).json({ success: true, data: results });                   // Return success code and our result set
     });
+});
+
+
+//============================================================================================================================================
+//---------------------------------------------------------------------------
+// The following couple of API's are something not related to the project, but something I'm now using for a hobby project
+// having been inspired from the work! So please ignore these, but this helps me reuse the same server/AWS free tier!!!
+//
+// API - GET puzzles
+// --------------------------------------------------------------------------
+
+app.get('/public-api/puzzle', (req, res) => {
+    const puzzleID = req.query.puzzleID;
+    const mode = req.query.mode ? parseInt(req.query.mode, 10) : null;
+    const inspected = req.query.inspected ? parseInt(req.query.inspected, 10) : null;
+    
+    if (typeof puzzleID !== 'string' || puzzleID.trim() === '') {
+        return res.status(400).json({ error: puzzleID });
+      }
+
+    let query = 'SELECT * FROM puzzles WHERE ';
+    const params = [];
+
+    if (inspected !== null) {
+        query += ' inspected = ? AND ';
+        params.push(inspected);
+      }
+
+      params.push(puzzleID);
+
+    // Default mode = Greater or equal to the Puzzle ID
+    if (mode == null || mode === 0) {
+        query+= 'PuzzleID >= ? ORDER by PuzzleID ASC LIMIT 1';
+    }
+    // Previous Record mode = Less than Puzzle ID
+    if (mode === 1) {
+        query+= 'PuzzleID < ? ORDER by PuzzleID DESC LIMIT 1';
+    }
+    // Next Record mode = Greater than the Puzzle ID
+    if (mode === 2) {
+        query+= 'PuzzleID > ? ORDER by PuzzleID ASC LIMIT 1';
+    }
+  
+    db.query(query, params, (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Database query failed' });
+      }
+  
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'No puzzle found' });
+      }
+  
+      res.json(results[0]);
+    });
+  });
+
+//---------------------------------------------------------------------------
+// API - PUT - Update a puzzle
+// --------------------------------------------------------------------------
+
+app.put('/public-api/puzzle', (req, res) => {
+    const {puzzleID, proposed, inspected} = req.query;
+
+    // Check all required parameters have been passed 
+    if (puzzleID == null || proposed == null || inspected == null) {
+        res.status(400).json({error: 'Incorrect parameters passed'+puzzleID+proposed+inspected});               
+        return;
+    } 
+
+    // Update this puzzle
+    const updateTermQuery = 'UPDATE puzzles SET proposed=?, inspected=? WHERE puzzleID=?';
+    db.query(updateTermQuery, [proposed, inspected, puzzleID], (err, result) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            console.log(err.message);
+            return;
+        }
+    res.status(200).json({message: 'Record Updated Successfully'});            
+    });
+});
+
+// --------------------------------------------------------------------------
+// API - Start (login the puzzle app)
+// --------------------------------------------------------------------------
+
+app.post("/public-api/start", (req, res) => {
+    if (req.query.ID === process.env.APP_PASSWORD) {
+        return res.json({ message: "Logged in" });
+    }
+    res.status(401).json({ message: "Wrong credentials" });
 });
